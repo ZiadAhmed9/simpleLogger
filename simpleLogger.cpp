@@ -10,18 +10,26 @@
 #include <boost/log/trivial.hpp>
 #include <boost/core/null_deleter.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
+#include <boost/log/utility/setup/file.hpp>
 #include <boost/make_shared.hpp>
 #include <boost/shared_ptr.hpp>
+#include <random>
 #include <fstream>
 #include <ostream>
-
 
 namespace logging = boost::log;
 namespace src = boost::log::sources;
 namespace expr = boost::log::expressions;
 namespace sinks = boost::log::sinks;
 namespace attrs = boost::log::attributes;
-
+namespace logkw=logging::keywords;
+void init()
+{    
+    /*logging::core::get()->add_global_attribute(
+        "TimeStamp", boost::log::attributes::local_clock()
+    );*/
+    //logging::formatter formatter = boost::log::expressions::format("[%TimeStamp%] [%Severity%] %Message%");
+}
 BOOST_LOG_ATTRIBUTE_KEYWORD(line_id, "LineID", unsigned int)
 BOOST_LOG_ATTRIBUTE_KEYWORD(timestamp, "TimeStamp", boost::posix_time::ptime)
 BOOST_LOG_ATTRIBUTE_KEYWORD(severity, "Severity", logging::trivial::severity_level)
@@ -38,12 +46,13 @@ BOOST_LOG_GLOBAL_LOGGER_INIT(logger, src::severity_logger_mt) {
     boost::shared_ptr<text_sink> sink = boost::make_shared<text_sink>();
 
     // add a logfile stream to our sink
-    sink->locked_backend()->add_stream(boost::make_shared<std::ofstream>(LOGFILE));
+    //sink->locked_backend()->add_stream(boost::make_shared<std::ofstream>(LOGFILE));
 
     // add "console" output stream to our sink
-    sink->locked_backend()->add_stream(boost::shared_ptr<std::ostream>(&std::clog, boost::null_deleter()));
+    //sink->locked_backend()->add_stream(boost::shared_ptr<std::ostream>(&std::clog, boost::null_deleter()));
 
     // specify the format of the log message
+
     logging::formatter formatter = expr::stream
         << std::setw(7) << std::setfill('0') << line_id << std::setfill(' ') << " | "
         << expr::format_date_time(timestamp, "%Y-%m-%d, %H:%M:%S.%f") << " "
@@ -51,11 +60,14 @@ BOOST_LOG_GLOBAL_LOGGER_INIT(logger, src::severity_logger_mt) {
         << " - " << expr::smessage;
     sink->set_formatter(formatter);
 
+    logging::add_file_log("run_logs.txt",logkw::open_mode=std::ios::app) 
+    ->set_formatter(formatter);
+
     // only messages with severity >= SEVERITY_THRESHOLD are written
     sink->set_filter(severity >= SEVERITY_THRESHOLD);
 
     // "register" our sink
     logging::core::get()->add_sink(sink);
-
+    logging::keywords::auto_flush = true;
     return logger;
 }
